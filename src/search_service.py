@@ -155,6 +155,23 @@ class SearchResponse:
         return "\n".join(lines)
 
 
+@dataclass(frozen=True)
+class IntelSearchDimension:
+    """Comprehensive intel search dimension with a resolved provider query."""
+    name: str
+    query: str
+    desc: str
+    tavily_topic: Optional[str]
+    strict_freshness: bool
+
+
+@dataclass(frozen=True)
+class IntelQueryTemplate:
+    """Query templates for regular stocks and index/ETF symbols."""
+    stock_query: str
+    index_etf_query: str
+
+
 class BaseSearchProvider(ABC):
     """搜索引擎基类"""
     
@@ -1584,6 +1601,16 @@ class NaverSearchProvider(BaseSearchProvider):
         return re.sub(r"\s+", " ", text).strip()
 
     @staticmethod
+    def _extract_domain(url: str) -> str:
+        """Extract domain from URL as source label."""
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.replace("www.", "")
+            return domain or "Naver"
+        except Exception:
+            return "Naver"
+
+    @staticmethod
     def _parse_error(response: requests.Response) -> str:
         try:
             payload = response.json()
@@ -2499,6 +2526,48 @@ class SearchService:
     def _is_korean_stock(stock_code: str) -> bool:
         """Only explicit Korean exchange suffixes are treated as Korean stocks."""
         return stock_code.strip().upper().endswith((".KS", ".KQ"))
+
+    @classmethod
+    def _resolve_intel_query_locale(cls, stock_code: str, stock_name: str) -> str:
+        """Resolve the language used to build stock intel search queries."""
+        if cls._is_korean_stock(stock_code):
+            return "ko"
+        if cls._is_foreign_stock(stock_code):
+            return "en"
+        return "zh"
+
+    @classmethod
+    def _resolve_provider_query_locale(
+        cls,
+        provider: BaseSearchProvider,
+        stock_code: str,
+        stock_name: str,
+    ) -> str:
+        """Resolve query language for a concrete provider call."""
+        if isinstance(provider, NaverSearchProvider):
+            return "ko"
+        return cls._resolve_intel_query_locale(stock_code, stock_name)
+
+    @classmethod
+    def _build_stock_news_query(
+        cls,
+        stock_code: str,
+        stock_name: str,
+        *,
+        focus_keywords: Optional[List[str]],
+        prefer_chinese: bool,
+        query_locale: str,
+    ) -> str:
+        """Build the stock-news query for the selected language context."""
+        if query_locale == "ko":
+            return f"{stock_name} {stock_code} 주식 최신 뉴스"
+        if focus_keywords:
+            return " ".join(focus_keywords)
+        if prefer_chinese:
+            return f"{stock_name} {stock_code} 股票 最新消息"
+        if query_locale == "en":
+            return f"{stock_name} {stock_code} stock latest news"
+        return f"{stock_name} {stock_code} 股票 最新消息"
 
     @classmethod
     def _contains_chinese_text(cls, value: Optional[str]) -> bool:
@@ -3728,20 +3797,14 @@ class SearchService:
         )
 
         # 构建搜索查询（优化搜索效果）
-        is_foreign = self._is_foreign_stock(stock_code)
-        if focus_keywords:
-            # 如果提供了关键词，直接使用关键词作为查询
-            query = " ".join(focus_keywords)
-        elif prefer_chinese:
-            query = f"{stock_name} {stock_code} 股票 最新消息"
-        elif self._is_korean_stock(stock_code):
-            query = f"{stock_name} {stock_code} 주식 최신 뉴스"
-        elif is_foreign:
-            # 港股/美股使用英文搜索关键词
-            query = f"{stock_name} {stock_code} stock latest news"
-        else:
-            # 默认主查询：股票名称 + 核心关键词
-            query = f"{stock_name} {stock_code} 股票 最新消息"
+        query_locale = self._resolve_intel_query_locale(stock_code, stock_name)
+        query = self._build_stock_news_query(
+            stock_code,
+            stock_name,
+            focus_keywords=focus_keywords,
+            prefer_chinese=prefer_chinese,
+            query_locale=query_locale,
+        )
 
         logger.info(
             (
@@ -3817,12 +3880,18 @@ class SearchService:
             for provider in self._providers:
                 if not provider.is_available:
                     continue
-                if isinstance(provider, NaverSearchProvider) and not self._is_korean_stock(stock_code):
-                    logger.debug(
-                        "跳过 Naver 新闻搜索: %s 不是显式 .KS/.KQ 韩国股票代码",
-                        stock_code,
-                    )
-                    continue
+                provider_query_locale = self._resolve_provider_query_locale(
+                    provider,
+                    stock_code,
+                    stock_name,
+                )
+                provider_query = self._build_stock_news_query(
+                    stock_code,
+                    stock_name,
+                    focus_keywords=focus_keywords,
+                    prefer_chinese=prefer_chinese,
+                    query_locale=provider_query_locale,
+                )
 
                 search_kwargs: Dict[str, Any] = {}
                 if isinstance(provider, TavilySearchProvider):
@@ -3842,7 +3911,12 @@ class SearchService:
                         provider=provider.name,
                         operation="search_stock_news",
                     )
-                    response = provider.search(query, provider_max_results, days=search_days, **search_kwargs)
+                    response = provider.search(
+                        provider_query,
+                        provider_max_results,
+                        days=search_days,
+                        **search_kwargs,
+                    )
                 except Exception as exc:
                     self._record_news_search_run(
                         provider=provider.name,
@@ -4051,6 +4125,107 @@ class SearchService:
             success=False,
             error_message="事件搜索失败"
         )
+
+    def _build_comprehensive_intel_dimensions(
+        self,
+        stock_code: str,
+        stock_name: str,
+        query_locale: Optional[str] = None,
+    ) -> List[IntelSearchDimension]:
+        """Build locale-aware search dimensions for comprehensive intel search."""
+        locale = query_locale or self._resolve_intel_query_locale(stock_code, stock_name)
+        is_index_etf = self.is_index_or_etf(stock_code, stock_name)
+
+        template_sets = {
+            "en": [
+                ("latest_news", IntelQueryTemplate(
+                    "{stock_name} {stock_code} latest news events",
+                    "{stock_name} {stock_code} latest news events",
+                ), "最新消息", "news", True),
+                ("market_analysis", IntelQueryTemplate(
+                    "{stock_name} analyst rating target price report",
+                    "{stock_name} analyst rating target price report",
+                ), "机构分析", None, False),
+                ("risk_check", IntelQueryTemplate(
+                    "{stock_name} risk insider selling lawsuit litigation",
+                    "{stock_name} {stock_code} index performance outlook tracking error",
+                ), "风险排查", None if is_index_etf else "news", not is_index_etf),
+                ("earnings", IntelQueryTemplate(
+                    "{stock_name} earnings revenue profit growth forecast",
+                    "{stock_name} {stock_code} index performance composition outlook",
+                ), "业绩预期", None, False),
+                ("industry", IntelQueryTemplate(
+                    "{stock_name} industry competitors market share outlook",
+                    "{stock_name} {stock_code} index sector allocation holdings",
+                ), "行业分析", None, False),
+            ],
+            "ko": [
+                ("latest_news", IntelQueryTemplate(
+                    "{stock_name} {stock_code} 최신 뉴스 주요 이슈",
+                    "{stock_name} {stock_code} 최신 뉴스 주요 이슈",
+                ), "最新消息", "news", True),
+                ("market_analysis", IntelQueryTemplate(
+                    "{stock_name} 증권사 리포트 목표주가 투자의견 분석",
+                    "{stock_name} 증권사 리포트 목표주가 투자의견 분석",
+                ), "机构分析", None, False),
+                ("risk_check", IntelQueryTemplate(
+                    "{stock_name} 리스크 내부자 매도 소송 악재",
+                    "{stock_name} 지수 성과 추적오차 전망",
+                ), "风险排查", None if is_index_etf else "news", not is_index_etf),
+                ("announcements", IntelQueryTemplate(
+                    "{stock_name} {stock_code} 공시 주요 공시 전자공시",
+                    "{stock_name} {stock_code} 공시 지수 변경 구성 종목",
+                ), "公司公告", "news", True),
+                ("earnings", IntelQueryTemplate(
+                    "{stock_name} 실적 발표 매출 영업이익 순이익 전망",
+                    "{stock_name} 구성 종목 실적 추적 성과",
+                ), "业绩预期", None, False),
+                ("industry", IntelQueryTemplate(
+                    "{stock_name} 산업 경쟁사 시장점유율 전망",
+                    "{stock_name} 구성 종목 업종 비중",
+                ), "行业分析", None, False),
+            ],
+            "zh": [
+                ("latest_news", IntelQueryTemplate(
+                    "{stock_name} {stock_code} 最新 新闻 重大 事件",
+                    "{stock_name} {stock_code} 最新 新闻 重大 事件",
+                ), "最新消息", "news", True),
+                ("market_analysis", IntelQueryTemplate(
+                    "{stock_name} 研报 目标价 评级 深度分析",
+                    "{stock_name} 研报 目标价 评级 深度分析",
+                ), "机构分析", None, False),
+                ("risk_check", IntelQueryTemplate(
+                    "{stock_name} 减持 处罚 违规 诉讼 利空 风险",
+                    "{stock_name} 指数走势 跟踪误差 净值 表现",
+                ), "风险排查", None if is_index_etf else "news", not is_index_etf),
+                ("announcements", IntelQueryTemplate(
+                    "{stock_name} {stock_code} 公司公告 重要公告 上交所 深交所 cninfo",
+                    "{stock_name} {stock_code} 公告 指数调整 成分变化",
+                ), "公司公告", "news", True),
+                ("earnings", IntelQueryTemplate(
+                    "{stock_name} 业绩预告 财报 营收 净利润 同比增长",
+                    "{stock_name} 指数成分 净值 跟踪表现",
+                ), "业绩预期", None, False),
+                ("industry", IntelQueryTemplate(
+                    "{stock_name} 所在行业 竞争对手 市场份额 行业前景",
+                    "{stock_name} 指数成分股 行业配置 权重",
+                ), "行业分析", None, False),
+            ],
+        }
+
+        dimensions: List[IntelSearchDimension] = []
+        for name, template, desc, tavily_topic, strict_freshness in template_sets[locale]:
+            query_template = template.index_etf_query if is_index_etf else template.stock_query
+            dimensions.append(
+                IntelSearchDimension(
+                    name=name,
+                    query=query_template.format(stock_name=stock_name, stock_code=stock_code),
+                    desc=desc,
+                    tavily_topic=tavily_topic,
+                    strict_freshness=strict_freshness,
+                )
+            )
+        return dimensions
     
     def search_comprehensive_intel(
         self,
@@ -4076,114 +4251,7 @@ class SearchService:
         """
         results = {}
         search_count = 0
-
-        is_foreign = self._is_foreign_stock(stock_code)
-        is_index_etf = self.is_index_or_etf(stock_code, stock_name)
-
-        if is_foreign:
-            search_dimensions = [
-                {
-                    'name': 'latest_news',
-                    'query': f"{stock_name} {stock_code} latest news events",
-                    'desc': '最新消息',
-                    'tavily_topic': 'news',
-                    'strict_freshness': True,
-                },
-                {
-                    'name': 'market_analysis',
-                    'query': f"{stock_name} analyst rating target price report",
-                    'desc': '机构分析',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-                {
-                    'name': 'risk_check',
-                    'query': (
-                        f"{stock_name} {stock_code} index performance outlook tracking error"
-                        if is_index_etf else f"{stock_name} risk insider selling lawsuit litigation"
-                    ),
-                    'desc': '风险排查',
-                    'tavily_topic': None if is_index_etf else 'news',
-                    'strict_freshness': not is_index_etf,
-                },
-                {
-                    'name': 'earnings',
-                    'query': (
-                        f"{stock_name} {stock_code} index performance composition outlook"
-                        if is_index_etf else f"{stock_name} earnings revenue profit growth forecast"
-                    ),
-                    'desc': '业绩预期',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-                {
-                    'name': 'industry',
-                    'query': (
-                        f"{stock_name} {stock_code} index sector allocation holdings"
-                        if is_index_etf else f"{stock_name} industry competitors market share outlook"
-                    ),
-                    'desc': '行业分析',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-            ]
-        else:
-            search_dimensions = [
-                {
-                    'name': 'latest_news',
-                    'query': f"{stock_name} {stock_code} 最新 新闻 重大 事件",
-                    'desc': '最新消息',
-                    'tavily_topic': 'news',
-                    'strict_freshness': True,
-                },
-                {
-                    'name': 'market_analysis',
-                    'query': f"{stock_name} 研报 目标价 评级 深度分析",
-                    'desc': '机构分析',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-                {
-                    'name': 'risk_check',
-                    'query': (
-                        f"{stock_name} 指数走势 跟踪误差 净值 表现"
-                        if is_index_etf else f"{stock_name} 减持 处罚 违规 诉讼 利空 风险"
-                    ),
-                    'desc': '风险排查',
-                    'tavily_topic': None if is_index_etf else 'news',
-                    'strict_freshness': not is_index_etf,
-                },
-                {
-                    'name': 'announcements',
-                    'query': (
-                        f"{stock_name} {stock_code} 公告 指数调整 成分变化"
-                        if is_index_etf else f"{stock_name} {stock_code} 公司公告 重要公告 上交所 深交所 cninfo"
-                    ),
-                    'desc': '公司公告',
-                    'tavily_topic': 'news',
-                    'strict_freshness': True,
-                },
-                {
-                    'name': 'earnings',
-                    'query': (
-                        f"{stock_name} 指数成分 净值 跟踪表现"
-                        if is_index_etf else f"{stock_name} 业绩预告 财报 营收 净利润 同比增长"
-                    ),
-                    'desc': '业绩预期',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-                {
-                    'name': 'industry',
-                    'query': (
-                        f"{stock_name} 指数成分股 行业配置 权重"
-                        if is_index_etf else f"{stock_name} 所在行业 竞争对手 市场份额 行业前景"
-                    ),
-                    'desc': '行业分析',
-                    'tavily_topic': None,
-                    'strict_freshness': False,
-                },
-            ]
+        search_dimensions = self._build_comprehensive_intel_dimensions(stock_code, stock_name)
         
         search_days = self._effective_news_window_days()
         target_per_dimension = 3
@@ -4217,47 +4285,65 @@ class SearchService:
             
             provider = available_providers[provider_index % len(available_providers)]
             provider_index += 1
+            provider_query_locale = self._resolve_provider_query_locale(
+                provider,
+                stock_code,
+                stock_name,
+            )
+            if provider_query_locale != self._resolve_intel_query_locale(stock_code, stock_name):
+                provider_dimensions = self._build_comprehensive_intel_dimensions(
+                    stock_code,
+                    stock_name,
+                    query_locale=provider_query_locale,
+                )
+                provider_dim_by_name = {
+                    provider_dim.name: provider_dim
+                    for provider_dim in provider_dimensions
+                }
+                provider_dim = provider_dim_by_name.get(dim.name, dim)
+            else:
+                provider_dim = dim
             
             request_days = (
                 self.ANALYTICAL_INTEL_LOOKBACK_DAYS
-                if dim['name'] in self.ANALYTICAL_INTEL_DIMENSIONS
+                if dim.name in self.ANALYTICAL_INTEL_DIMENSIONS
                 else search_days
             )
 
             logger.info(
                 "[情报搜索] %s: 使用 %s，请求窗口: 近%s天",
-                dim['desc'],
+                dim.desc,
                 provider.name,
                 request_days,
             )
 
-            if isinstance(provider, TavilySearchProvider) and dim.get('tavily_topic'):
+            if isinstance(provider, TavilySearchProvider) and dim.tavily_topic:
                 response = provider.search(
-                    dim['query'],
+                    provider_dim.query,
                     max_results=provider_max_results,
                     days=request_days,
-                    topic=dim['tavily_topic'],
+                    topic=dim.tavily_topic,
                 )
             else:
                 response = provider.search(
-                    dim['query'],
+                    provider_dim.query,
                     max_results=provider_max_results,
                     days=request_days,
                 )
-            if dim['strict_freshness']:
+            if dim.strict_freshness:
                 filtered_response = self._filter_news_response(
                     response,
                     search_days=search_days,
                     max_results=provider_max_results,
-                    log_scope=f"{stock_code}:{provider.name}:{dim['name']}",
+                    log_scope=f"{stock_code}:{provider.name}:{dim.name}",
                 )
-            elif dim['name'] in self.ANALYTICAL_INTEL_DIMENSIONS:
+            elif dim.name in self.ANALYTICAL_INTEL_DIMENSIONS:
                 filtered_response = self._filter_news_response(
                     response,
                     search_days=self.ANALYTICAL_INTEL_LOOKBACK_DAYS,
                     max_results=provider_max_results,
                     keep_unknown=True,
-                    log_scope=f"{stock_code}:{provider.name}:{dim['name']}",
+                    log_scope=f"{stock_code}:{provider.name}:{dim.name}",
                 )
             else:
                 filtered_response = self._normalize_and_limit_response(
@@ -4270,28 +4356,28 @@ class SearchService:
                 stock_name=stock_name,
                 prefer_chinese=self._should_prefer_chinese_news(stock_code, stock_name),
                 max_results=provider_max_results,
-                log_scope=f"{stock_code}:{provider.name}:{dim['name']}:rank",
+                log_scope=f"{stock_code}:{provider.name}:{dim.name}:rank",
             )
             filtered_response = self._filter_ranked_news_for_context(
                 filtered_response,
-                log_scope=f"{stock_code}:{provider.name}:{dim['name']}:admission",
+                log_scope=f"{stock_code}:{provider.name}:{dim.name}:admission",
             )
             filtered_response = self._limit_search_response(
                 filtered_response,
                 max_results=target_per_dimension,
             )
-            results[dim['name']] = filtered_response
+            results[dim.name] = filtered_response
             search_count += 1
             
             if response.success:
                 logger.info(
                     "[情报搜索] %s: 原始=%s条, 过滤后=%s条",
-                    dim['desc'],
+                    dim.desc,
                     len(response.results),
                     len(filtered_response.results),
                 )
             else:
-                logger.warning(f"[情报搜索] {dim['desc']}: 搜索失败 - {response.error_message}")
+                logger.warning("[情报搜索] %s: 搜索失败 - %s", dim.desc, response.error_message)
             
             # 短暂延迟避免请求过快
             time.sleep(0.5)

@@ -1914,37 +1914,36 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
         mock_get.assert_called_once()
         service._providers[1].search.assert_not_called()
 
-    def test_search_stock_news_skips_naver_for_non_korean_or_bare_codes(self) -> None:
-        """Only explicit .KS/.KQ symbols should use Naver."""
-        for stock_code, stock_name in (
-            ("600519", "贵州茅台"),
-            ("AAPL", "Apple"),
-            ("00700.HK", "腾讯控股"),
-            ("005930", "삼성전자"),
-        ):
-            with self.subTest(stock_code=stock_code):
-                with patch("src.search_service._get_with_retry") as mock_get:
-                    service = SearchService(
-                        naver_client_id="naver-id",
-                        naver_client_secret="naver-secret",
-                        bocha_keys=["dummy_key"],
-                        searxng_public_instances_enabled=False,
-                        news_max_age_days=3,
-                        news_strategy_profile="short",
-                    )
-                    service._providers[1].search = MagicMock(
-                        return_value=_response([
-                            _result(
-                                f"{stock_code} {stock_name} fresh news",
-                                datetime.now().date().isoformat(),
-                            )
-                        ])
-                    )
-                    resp = service.search_stock_news(stock_code, stock_name, max_results=1)
+    def test_search_stock_news_uses_naver_with_korean_query_for_non_korean_suffix(self) -> None:
+        """Naver should search in Korean even for non-Korean tickers when it is configured."""
+        fresh_text = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {
+            "items": [
+                {
+                    "title": "AAPL 애플 최신 뉴스",
+                    "originallink": "https://news.example.kr/apple",
+                    "description": "애플 주식 관련 최신 뉴스",
+                    "pubDate": fresh_text,
+                }
+            ]
+        }
 
-                self.assertTrue(resp.success)
-                mock_get.assert_not_called()
-                service._providers[1].search.assert_called_once()
+        with patch("src.search_service._get_with_retry", return_value=fake_response) as mock_get:
+            service = SearchService(
+                naver_client_id="naver-id",
+                naver_client_secret="naver-secret",
+                searxng_public_instances_enabled=False,
+                news_max_age_days=3,
+                news_strategy_profile="short",
+            )
+            resp = service.search_stock_news("AAPL", "Apple", max_results=1)
+
+        self.assertTrue(resp.success)
+        self.assertEqual(resp.provider, "Naver")
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(params["query"], "Apple AAPL 주식 최신 뉴스")
 
     def test_search_stock_news_falls_back_when_naver_results_are_filtered(self) -> None:
         """Old Naver results should not stop fallback to the next provider."""
@@ -1987,6 +1986,99 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
         self.assertEqual(resp.results[0].title, "035420.KS NAVER fresh fallback")
         mock_get.assert_called_once()
         service._providers[1].search.assert_called_once()
+
+    def test_intel_query_locale_prioritizes_explicit_korean_suffix(self) -> None:
+        """Explicit .KS/.KQ symbols should use Korean intel query templates."""
+        service, _ = self._create_service_with_mock_provider()
+
+        self.assertEqual(service._resolve_intel_query_locale("000660.KS", "SK hynix"), "ko")
+        self.assertEqual(service._resolve_intel_query_locale("035720.KQ", "카카오"), "ko")
+        self.assertEqual(service._resolve_intel_query_locale("AAPL", "Apple"), "en")
+        self.assertEqual(service._resolve_intel_query_locale("600519", "贵州茅台"), "zh")
+
+    def test_comprehensive_intel_keeps_a_share_chinese_templates(self) -> None:
+        """A-share comprehensive intel should keep the existing Chinese templates."""
+        service, _ = self._create_service_with_mock_provider()
+
+        dimensions = service._build_comprehensive_intel_dimensions("600519", "贵州茅台")
+        queries = {dimension.name: dimension.query for dimension in dimensions}
+
+        self.assertIn("业绩预告", queries["earnings"])
+        self.assertIn("财报", queries["earnings"])
+        self.assertIn("最新 新闻", queries["latest_news"])
+
+    def test_search_comprehensive_intel_uses_korean_queries_for_korean_suffix(self) -> None:
+        """Korean .KS/.KQ intel search should send Korean queries to providers."""
+        fresh_text = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        service, mock_search = self._create_service_with_mock_provider(
+            news_max_age_days=3,
+            news_strategy_profile="short",
+        )
+        mock_search.side_effect = [
+            _response([_result("SK hynix latest", fresh_text)]),
+            _response([_result("SK hynix analysis", None)]),
+            _response([_result("SK hynix risk", fresh_text)]),
+            _response([_result("SK hynix disclosure", fresh_text)]),
+            _response([_result("SK hynix earnings", None)]),
+        ]
+
+        with patch("src.search_service.time.sleep"):
+            intel = service.search_comprehensive_intel(
+                stock_code="000660.KS",
+                stock_name="SK hynix",
+                max_searches=5,
+            )
+
+        self.assertIn("earnings", intel)
+        queries = [call.args[0] for call in mock_search.call_args_list]
+        earnings_query = queries[4]
+        self.assertIn("실적", earnings_query)
+        self.assertIn("매출", earnings_query)
+        self.assertIn("순이익", earnings_query)
+        self.assertIn("전망", earnings_query)
+        self.assertNotIn("业绩预告", earnings_query)
+        self.assertNotIn("财报", earnings_query)
+
+    def test_search_comprehensive_intel_uses_korean_queries_for_naver_provider(self) -> None:
+        """Naver comprehensive intel calls should use Korean queries regardless of ticker market."""
+        fresh_text = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {
+            "items": [
+                {
+                    "title": "AAPL 애플 실적 전망",
+                    "originallink": "https://news.example.kr/apple-earnings",
+                    "description": "애플 실적과 매출 전망",
+                    "pubDate": fresh_text,
+                }
+            ]
+        }
+
+        with patch("src.search_service._get_with_retry", return_value=fake_response) as mock_get:
+            service = SearchService(
+                naver_client_id="naver-id",
+                naver_client_secret="naver-secret",
+                searxng_public_instances_enabled=False,
+                news_max_age_days=3,
+                news_strategy_profile="short",
+            )
+            with patch("src.search_service.time.sleep"):
+                intel = service.search_comprehensive_intel(
+                    stock_code="AAPL",
+                    stock_name="Apple",
+                    max_searches=4,
+                )
+
+        self.assertIn("earnings", intel)
+        queries = [call.kwargs["params"]["query"] for call in mock_get.call_args_list]
+        earnings_query = queries[3]
+        self.assertIn("실적", earnings_query)
+        self.assertIn("매출", earnings_query)
+        self.assertIn("순이익", earnings_query)
+        self.assertIn("전망", earnings_query)
+        self.assertNotIn("earnings revenue", earnings_query)
 
     def test_search_comprehensive_intel_splits_strict_and_non_strict_filters(self) -> None:
         """Latest news stays strict while market analysis keeps undated results."""
