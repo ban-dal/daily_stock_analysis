@@ -22,6 +22,15 @@ on:
         required: false
         default: false
         type: boolean
+      report_language:
+        description: 'Report output language'
+        required: false
+        default: 'use-config'
+        type: choice
+        options:
+          - use-config   # Use REPORT_LANGUAGE from repository variables/secrets
+          - zh           # Chinese
+          - en           # English
 
 # Concurrency control: run only one analysis job at a time
 concurrency:
@@ -373,7 +382,7 @@ jobs:
           # Runtime configuration
           # ==========================================
           REPORT_TYPE: ${{ vars.REPORT_TYPE || secrets.REPORT_TYPE || 'simple' }}
-          REPORT_LANGUAGE: ${{ vars.REPORT_LANGUAGE || secrets.REPORT_LANGUAGE || '' }}
+          REPORT_LANGUAGE: ${{ (github.event.inputs.report_language == 'zh' || github.event.inputs.report_language == 'en') && github.event.inputs.report_language || vars.REPORT_LANGUAGE || secrets.REPORT_LANGUAGE || 'zh' }}
           REPORT_SHOW_LLM_MODEL: ${{ vars.REPORT_SHOW_LLM_MODEL || secrets.REPORT_SHOW_LLM_MODEL || 'true' }}
           SINGLE_STOCK_NOTIFY: ${{ vars.SINGLE_STOCK_NOTIFY || secrets.SINGLE_STOCK_NOTIFY || 'false' }}
           MARKET_REVIEW_ENABLED: ${{ vars.MARKET_REVIEW_ENABLED || secrets.MARKET_REVIEW_ENABLED || 'true' }}
@@ -423,6 +432,7 @@ jobs:
           echo "🎯 Run mode: $MODE"
           echo "📊 Watchlist: $STOCK_LIST"
           echo "📝 Report type: $REPORT_TYPE"
+          echo "🌐 Report language: $REPORT_LANGUAGE"
           echo ""
           echo "=========================================="
           echo "📋 Configuration Check"

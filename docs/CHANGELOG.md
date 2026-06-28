@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [改进] GitHub Actions 每日分析手动触发新增 `report_language` 选择项，可在单次运行中选择 `use-config`、`zh` 或 `en`，并在运行日志中打印最终报告语言。
 - [新功能] 新增 Naver Search 新闻 provider，配置 `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` 后对 `.KS` / `.KQ` 韩国个股优先使用 Naver 新闻搜索，并在 GitHub Actions 每日分析工作流中支持对应 Secrets。
 - [测试] 补充 Naver Search provider 映射、韩国 suffix-only 调用、非韩国代码跳过与 GitHub Actions Secret 映射测试。
 - [修复] API 异步批量分析共享概念板块排行缓存，避免同批多股重复拉取全市场概念排行。

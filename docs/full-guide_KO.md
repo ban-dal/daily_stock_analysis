@@ -115,7 +115,7 @@ Fork한 repo → `Settings` → `Secrets and variables` → `Actions` → `New r
 |------------|------|:----:|
 | `SINGLE_STOCK_NOTIFY` | 단일 종목 push 모드. `true`로 설정하면 각 종목 분석 직후 push | 선택 |
 | `REPORT_TYPE` | 리포트 유형: `simple`(간결), `full`(전체), `brief`(3-5문장), Docker 권장: `full` | 선택 |
-| `REPORT_LANGUAGE` | 리포트 출력 언어: `zh`(기본 중국어) / `en`(영어). prompt instructions, templates, notification fallback, Web report view의 고정 문구도 함께 업데이트합니다. 번들 `00-daily-analysis.yml`은 이미 이 변수를 매핑하므로 Actions Secrets/Variables에 설정하면 바로 동작합니다. | 선택 |
+| `REPORT_LANGUAGE` | 리포트 출력 언어: `zh`(기본 중국어) / `en`(영어). prompt instructions, templates, notification fallback, Web report view의 고정 문구도 함께 업데이트합니다. 번들 `00-daily-analysis.yml`은 이미 이 변수를 매핑하므로 Actions Secrets/Variables에 설정하면 바로 동작합니다. workflow를 수동 실행할 때는 `report_language` 입력으로 이번 실행만 임시 override할 수 있고, `use-config`는 Secrets/Variables 값을 그대로 사용합니다. | 선택 |
 | `REPORT_SHOW_LLM_MODEL` | 알림 리포트 footer에 분석에 사용된 LLM model을 표시할지 여부. 기본값은 `true`; runtime model metadata를 숨기려면 `false`로 설정합니다. 이 switch는 표시만 바꾸며 provider/model/Base URL, LiteLLM routing, runtime model save/migration/cleanup 동작은 변경하지 않습니다. | 선택 |
 | `REPORT_TEMPLATES_DIR` | Jinja2 template directory(프로젝트 루트 기준 상대 경로, 기본값 `templates`) | 선택 |
 | `REPORT_RENDERER_ENABLED` | Jinja2 template rendering 활성화(default `false`, zero regression) | 선택 |
