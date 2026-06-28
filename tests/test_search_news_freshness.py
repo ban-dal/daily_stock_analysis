@@ -1878,6 +1878,116 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
                 self.assertEqual(params["search_lang"], expected_lang)
                 self.assertEqual(params["country"], expected_country)
 
+    def test_search_stock_news_uses_naver_first_for_explicit_korean_suffix(self) -> None:
+        """Naver should be the first news provider for explicit .KS/.KQ symbols."""
+        fresh_text = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {
+            "items": [
+                {
+                    "title": "005930.KS 삼성전자 반도체 실적 개선",
+                    "originallink": "https://news.example.kr/samsung",
+                    "description": "삼성전자 실적 관련 최신 뉴스",
+                    "pubDate": fresh_text,
+                }
+            ]
+        }
+
+        with patch("src.search_service._get_with_retry", return_value=fake_response) as mock_get:
+            service = SearchService(
+                naver_client_id="naver-id",
+                naver_client_secret="naver-secret",
+                bocha_keys=["dummy_key"],
+                searxng_public_instances_enabled=False,
+                news_max_age_days=3,
+                news_strategy_profile="short",
+            )
+            service._providers[1].search = MagicMock(
+                return_value=_response([_result("bocha fallback", datetime.now().date().isoformat())])
+            )
+            resp = service.search_stock_news("005930.KS", "삼성전자", max_results=1)
+
+        self.assertTrue(resp.success)
+        self.assertEqual(resp.provider, "Naver")
+        self.assertEqual(resp.results[0].url, "https://news.example.kr/samsung")
+        mock_get.assert_called_once()
+        service._providers[1].search.assert_not_called()
+
+    def test_search_stock_news_skips_naver_for_non_korean_or_bare_codes(self) -> None:
+        """Only explicit .KS/.KQ symbols should use Naver."""
+        for stock_code, stock_name in (
+            ("600519", "贵州茅台"),
+            ("AAPL", "Apple"),
+            ("00700.HK", "腾讯控股"),
+            ("005930", "삼성전자"),
+        ):
+            with self.subTest(stock_code=stock_code):
+                with patch("src.search_service._get_with_retry") as mock_get:
+                    service = SearchService(
+                        naver_client_id="naver-id",
+                        naver_client_secret="naver-secret",
+                        bocha_keys=["dummy_key"],
+                        searxng_public_instances_enabled=False,
+                        news_max_age_days=3,
+                        news_strategy_profile="short",
+                    )
+                    service._providers[1].search = MagicMock(
+                        return_value=_response([
+                            _result(
+                                f"{stock_code} {stock_name} fresh news",
+                                datetime.now().date().isoformat(),
+                            )
+                        ])
+                    )
+                    resp = service.search_stock_news(stock_code, stock_name, max_results=1)
+
+                self.assertTrue(resp.success)
+                mock_get.assert_not_called()
+                service._providers[1].search.assert_called_once()
+
+    def test_search_stock_news_falls_back_when_naver_results_are_filtered(self) -> None:
+        """Old Naver results should not stop fallback to the next provider."""
+        old_text = (datetime.now(timezone.utc) - timedelta(days=20)).strftime(
+            "%a, %d %b %Y %H:%M:%S +0000"
+        )
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {
+            "items": [
+                {
+                    "title": "035420.KS NAVER 오래된 뉴스",
+                    "originallink": "https://news.example.kr/old-naver",
+                    "description": "오래된 뉴스",
+                    "pubDate": old_text,
+                }
+            ]
+        }
+
+        with patch("src.search_service._get_with_retry", return_value=fake_response) as mock_get:
+            service = SearchService(
+                naver_client_id="naver-id",
+                naver_client_secret="naver-secret",
+                bocha_keys=["dummy_key"],
+                searxng_public_instances_enabled=False,
+                news_max_age_days=3,
+                news_strategy_profile="short",
+            )
+            service._providers[1].search = MagicMock(
+                return_value=_response([
+                    _result(
+                        "035420.KS NAVER fresh fallback",
+                        datetime.now().date().isoformat(),
+                    )
+                ])
+            )
+            resp = service.search_stock_news("035420.KS", "NAVER", max_results=1)
+
+        self.assertTrue(resp.success)
+        self.assertEqual(resp.results[0].title, "035420.KS NAVER fresh fallback")
+        mock_get.assert_called_once()
+        service._providers[1].search.assert_called_once()
+
     def test_search_comprehensive_intel_splits_strict_and_non_strict_filters(self) -> None:
         """Latest news stays strict while market analysis keeps undated results."""
         today = datetime.now().date()

@@ -17,7 +17,7 @@
 
 [**产品预览**](#-产品预览) · [**功能特性**](#-功能特性) · [**快速开始**](#-快速开始) · [**推送效果**](#-推送效果) · [**文档中心**](docs/INDEX.md) · [**完整指南**](docs/full-guide.md)
 
-简体中文 | [English](docs/README_EN.md) | [繁體中文](docs/README_CHT.md)
+简体中文 | [English](docs/README_EN.md) | [繁體中文](docs/README_CHT.md) | [한국어](docs/README_KO.md)
 
 </div>
 
@@ -118,6 +118,7 @@
 | `ANSPIRE_API_KEYS` | [Anspire AI Search](https://aisearch.anspire.cn/)：中文内容特别优化，适合 A 股新闻和舆情检索；同一 Key 可复用为 Anspire 大模型 | **推荐** |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis)：搜索引擎结果补强，适合实时金融新闻 | **推荐** |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/)：通用新闻搜索 API | 可选 |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | [Naver Search](https://developers.naver.com/docs/serviceapi/search/news/news.md)：韩国 `.KS`/`.KQ` 个股新闻优先检索 | 可选 |
 | `BOCHA_API_KEYS` | [博查搜索](https://open.bocha.cn/)：中文搜索优化，支持 AI 摘要 | 可选 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/)：隐私优先，美股资讯补强 | 可选 |
 | `MINIMAX_API_KEYS` | [MiniMax](https://platform.minimaxi.com/)：结构化搜索结果 | 可选 |

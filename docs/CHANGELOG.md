@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [新功能] 新增 Naver Search 新闻 provider，配置 `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` 后对 `.KS` / `.KQ` 韩国个股优先使用 Naver 新闻搜索，并在 GitHub Actions 每日分析工作流中支持对应 Secrets。
+- [测试] 补充 Naver Search provider 映射、韩国 suffix-only 调用、非韩国代码跳过与 GitHub Actions Secret 映射测试。
 - [修复] API 异步批量分析共享概念板块排行缓存，避免同批多股重复拉取全市场概念排行。
 - [文档] 补齐概念板块排行字段契约与通知报告行业/概念类型列展示说明。
 - [新功能] #1742 新增信号归因分析功能（dashboard.signal_attribution），解释推荐理由的构成（技术指标、新闻舆情、基本面、市场环境的贡献度，以及最强看多/看空信号）。支持默认通知报告和 Jinja2 模板渲染，包含中英文国际化标签。归一化函数在 _parse_response() 和 parse_dashboard_json() 中显式调用，确保有效非零贡献度归一化到 100，all-zero 保留为 0（表示无有效信号）。

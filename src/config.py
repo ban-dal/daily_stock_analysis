@@ -761,6 +761,8 @@ class Config:
     vision_provider_priority: str = "gemini,anthropic,openai"
 
     # === 搜索引擎配置（支持多 Key 负载均衡）===
+    naver_client_id: Optional[str] = None  # Naver Search Client ID
+    naver_client_secret: Optional[str] = None  # Naver Search Client Secret
     anspire_api_keys: List[str] = field(default_factory=list)  # Anspire Search API Keys
     bocha_api_keys: List[str] = field(default_factory=list)  # Bocha API Keys
     minimax_api_keys: List[str] = field(default_factory=list)  # MiniMax API Keys
@@ -1443,6 +1445,9 @@ class Config:
         )
 
         # 解析搜索引擎 API Keys（支持多个 key，逗号分隔）
+        naver_client_id = (os.getenv('NAVER_CLIENT_ID') or '').strip() or None
+        naver_client_secret = (os.getenv('NAVER_CLIENT_SECRET') or '').strip() or None
+
         bocha_keys_str = os.getenv('BOCHA_API_KEYS', '')
         bocha_api_keys = [k.strip() for k in bocha_keys_str.split(',') if k.strip()]
 
@@ -1618,6 +1623,8 @@ class Config:
                 or ""
             ),
             vision_provider_priority=os.getenv('VISION_PROVIDER_PRIORITY', 'gemini,anthropic,openai'),
+            naver_client_id=naver_client_id,
+            naver_client_secret=naver_client_secret,
             anspire_api_keys=anspire_api_keys,
             bocha_api_keys=bocha_api_keys,
             minimax_api_keys=minimax_api_keys,
@@ -2515,6 +2522,7 @@ class Config:
             or self.brave_api_keys
             or self.serpapi_keys
             or self.has_searxng_enabled()
+            or (self.naver_client_id and self.naver_client_secret)
         )
 
     def is_agent_available(self) -> bool:

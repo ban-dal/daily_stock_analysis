@@ -953,6 +953,56 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         ],
         "warning_codes": ["secret_value", "comma_separated_keys"],
     },
+    "NAVER_CLIENT_ID": {
+        "title": "Naver Client ID",
+        "description": "Naver Search API client id. Used for Korean .KS/.KQ stock news search.",
+        "category": "data_source",
+        "data_type": "string",
+        "ui_control": "password",
+        "is_sensitive": True,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": None,
+        "options": [],
+        "validation": {},
+        "display_order": 35,
+        "help_key": "settings.data_source.search_api_keys",
+        "examples": [
+            "NAVER_CLIENT_ID=your_naver_client_id",
+        ],
+        "docs": [
+            {
+                "label": "完整指南：搜索服务配置",
+                "href": "https://github.com/ZhuLinsen/daily_stock_analysis/blob/main/docs/full-guide.md#搜索服务配置",
+            },
+        ],
+        "warning_codes": ["secret_value"],
+    },
+    "NAVER_CLIENT_SECRET": {
+        "title": "Naver Client Secret",
+        "description": "Naver Search API client secret. Must be configured with NAVER_CLIENT_ID.",
+        "category": "data_source",
+        "data_type": "string",
+        "ui_control": "password",
+        "is_sensitive": True,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": None,
+        "options": [],
+        "validation": {},
+        "display_order": 36,
+        "help_key": "settings.data_source.search_api_keys",
+        "examples": [
+            "NAVER_CLIENT_SECRET=your_naver_client_secret",
+        ],
+        "docs": [
+            {
+                "label": "完整指南：搜索服务配置",
+                "href": "https://github.com/ZhuLinsen/daily_stock_analysis/blob/main/docs/full-guide.md#搜索服务配置",
+            },
+        ],
+        "warning_codes": ["secret_value"],
+    },
     "SERPAPI_API_KEYS": {
         "title": "SerpAPI Keys",
         "description": "Comma-separated SerpAPI keys.",
@@ -4429,6 +4479,22 @@ _FIELD_HELP_METADATA: Dict[str, Dict[str, Any]] = {
             "TICKFLOW_API_KEY=your_tickflow_key",
         ],
         "docs": _DOC_FULL_GUIDE_DATA_SOURCE,
+        "warning_codes": ["secret_value"],
+    },
+    "NAVER_CLIENT_ID": {
+        "help_key": "settings.data_source.search_api_keys",
+        "examples": [
+            "NAVER_CLIENT_ID=your_naver_client_id",
+        ],
+        "docs": _DOC_FULL_GUIDE_SEARCH,
+        "warning_codes": ["secret_value"],
+    },
+    "NAVER_CLIENT_SECRET": {
+        "help_key": "settings.data_source.search_api_keys",
+        "examples": [
+            "NAVER_CLIENT_SECRET=your_naver_client_secret",
+        ],
+        "docs": _DOC_FULL_GUIDE_SEARCH,
         "warning_codes": ["secret_value"],
     },
     "SERPAPI_API_KEYS": {

@@ -119,6 +119,7 @@
 | `ANSPIRE_API_KEYS` | [Anspire AI Search](https://aisearch.anspire.cn/)：中文內容特別優化，可增強 A 股分析效果；同一 Key 也可作為 Anspire 大模型網關兜底示例 | **推薦** |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis)：搜尋引擎結果補強，適合即時金融新聞 | **推薦** |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/)：通用新聞搜尋 API | 可選 |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | [Naver Search](https://developers.naver.com/docs/serviceapi/search/news/news.md)：韓國 `.KS`/`.KQ` 個股新聞優先檢索 | 可選 |
 | `BOCHA_API_KEYS` | [博查搜尋](https://open.bocha.cn/)：中文搜尋優化，支援 AI 摘要 | 可選 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/)：隱私優先，美股資訊補強 | 可選 |
 | `MINIMAX_API_KEYS` | [MiniMax](https://platform.minimaxi.com/)：結構化搜尋結果 | 可選 |

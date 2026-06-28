@@ -12,6 +12,7 @@ A股自选股智能分析系统 - 搜索服务模块
 """
 
 import logging
+import html
 import re
 import threading
 import time
@@ -1490,6 +1491,113 @@ class MiniMaxSearchProvider(BaseSearchProvider):
             return '未知来源'
 
 
+class NaverSearchProvider(BaseSearchProvider):
+    """
+    Naver Search 新闻搜索引擎
+
+    特点：
+    - 面向韩国新闻检索，适合 KOSPI/KOSDAQ 个股新闻补强
+    - 使用 Naver 비로그인 오픈 API 的新闻搜索端点
+    - 需要 NAVER_CLIENT_ID 和 NAVER_CLIENT_SECRET
+
+    文档：https://developers.naver.com/docs/serviceapi/search/news/news.md
+    """
+
+    API_ENDPOINT = "https://openapi.naver.com/v1/search/news.json"
+    _TAG_RE = re.compile(r"<[^>]+>")
+
+    def __init__(self, client_id: Optional[str], client_secret: Optional[str]):
+        self._client_secret = (client_secret or "").strip()
+        super().__init__([(client_id or "").strip()] if (client_id or "").strip() else [], "Naver")
+
+    @property
+    def is_available(self) -> bool:
+        """Naver requires both client id and client secret."""
+        return bool(self._api_keys and self._client_secret)
+
+    def _do_search(
+        self,
+        query: str,
+        api_key: str,
+        max_results: int,
+        days: int = 7,
+    ) -> SearchResponse:
+        """执行 Naver 新闻搜索"""
+        headers = {
+            "X-Naver-Client-Id": api_key,
+            "X-Naver-Client-Secret": self._client_secret,
+            "Accept": "application/json",
+        }
+        params = {
+            "query": query,
+            "display": min(max(1, max_results), 100),
+            "start": 1,
+            "sort": "date",
+        }
+
+        response = _get_with_retry(
+            self.API_ENDPOINT,
+            headers=headers,
+            params=params,
+            timeout=10,
+        )
+        if response.status_code != 200:
+            error_msg = self._parse_error(response)
+            logger.warning("[Naver] 搜索失败: %s", error_msg)
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message=error_msg,
+            )
+
+        payload = response.json()
+        results: List[SearchResult] = []
+        for item in payload.get("items", [])[:max_results]:
+            title = self._clean_text(item.get("title", ""))
+            snippet = self._clean_text(item.get("description", ""))
+            url = (item.get("originallink") or item.get("link") or "").strip()
+            if not title and not snippet and not url:
+                continue
+            results.append(
+                SearchResult(
+                    title=title or url or "Naver news",
+                    snippet=snippet,
+                    url=url,
+                    source=self._extract_domain(url) if url else "Naver",
+                    published_date=item.get("pubDate"),
+                )
+            )
+
+        return SearchResponse(
+            query=query,
+            results=results,
+            provider=self.name,
+            success=True,
+        )
+
+    @classmethod
+    def _clean_text(cls, value: Any) -> str:
+        text = html.unescape(str(value or ""))
+        text = cls._TAG_RE.sub("", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    @staticmethod
+    def _parse_error(response: requests.Response) -> str:
+        try:
+            payload = response.json()
+            message = payload.get("errorMessage") or payload.get("message")
+            code = payload.get("errorCode") or payload.get("code")
+            if message and code:
+                return f"{code}: {message}"
+            if message:
+                return str(message)
+        except Exception:
+            pass
+        return f"HTTP {response.status_code}: {response.text[:200]}"
+
+
 class BraveSearchProvider(BaseSearchProvider):
     """
     Brave Search 搜索引擎
@@ -2266,6 +2374,8 @@ class SearchService:
         searxng_public_instances_enabled: bool = True,
         news_max_age_days: int = 3,
         news_strategy_profile: str = "short",
+        naver_client_id: Optional[str] = None,
+        naver_client_secret: Optional[str] = None,
     ):
         """
         初始化搜索服务
@@ -2281,6 +2391,8 @@ class SearchService:
             searxng_public_instances_enabled: 未配置自建实例时，是否自动使用公共 SearXNG 实例
             news_max_age_days: 新闻最大时效（天）
             news_strategy_profile: 新闻窗口策略档位（ultra_short/short/medium/long）
+            naver_client_id: Naver Search Client ID
+            naver_client_secret: Naver Search Client Secret
         """
         self._providers: List[BaseSearchProvider] = []
         self.news_max_age_days = max(1, news_max_age_days)
@@ -2301,32 +2413,39 @@ class SearchService:
         )
 
         # 初始化搜索引擎（按优先级排序）
-        # 1. Bocha 优先（中文搜索优化，AI摘要）
+        # 1. Naver 优先用于 .KS/.KQ 韩国股票新闻
+        if naver_client_id and naver_client_secret:
+            self._providers.append(NaverSearchProvider(naver_client_id, naver_client_secret))
+            logger.info("已配置 Naver 新闻搜索")
+        elif naver_client_id or naver_client_secret:
+            logger.warning("Naver 新闻搜索需要同时配置 NAVER_CLIENT_ID 和 NAVER_CLIENT_SECRET，已跳过")
+
+        # 2. Bocha 优先（中文搜索优化，AI摘要）
         if bocha_keys:
             self._providers.append(BochaSearchProvider(bocha_keys))
             logger.info(f"已配置 Bocha 搜索，共 {len(bocha_keys)} 个 API Key")
 
-        # 2. Tavily（免费额度更多，每月 1000 次）
+        # 3. Tavily（免费额度更多，每月 1000 次）
         if tavily_keys:
             self._providers.append(TavilySearchProvider(tavily_keys))
             logger.info(f"已配置 Tavily 搜索，共 {len(tavily_keys)} 个 API Key")
 
-        # 3. Brave Search（隐私优先，全球覆盖）
+        # 4. Brave Search（隐私优先，全球覆盖）
         if brave_keys:
             self._providers.append(BraveSearchProvider(brave_keys))
             logger.info(f"已配置 Brave 搜索，共 {len(brave_keys)} 个 API Key")
 
-        # 4. SerpAPI 作为备选（每月 100 次）
+        # 5. SerpAPI 作为备选（每月 100 次）
         if serpapi_keys:
             self._providers.append(SerpAPISearchProvider(serpapi_keys))
             logger.info(f"已配置 SerpAPI 搜索，共 {len(serpapi_keys)} 个 API Key")
 
-        # 5. MiniMax（Coding Plan Web Search，结构化结果）
+        # 6. MiniMax（Coding Plan Web Search，结构化结果）
         if minimax_keys:
             self._providers.append(MiniMaxSearchProvider(minimax_keys))
             logger.info(f"已配置 MiniMax 搜索，共 {len(minimax_keys)} 个 API Key")
 
-        # 6. SearXNG（自建实例优先；未配置时可自动发现公共实例）
+        # 7. SearXNG（自建实例优先；未配置时可自动发现公共实例）
         searxng_provider = SearXNGSearchProvider(
             searxng_base_urls,
             use_public_instances=bool(searxng_public_instances_enabled and not searxng_base_urls),
@@ -2338,9 +2457,10 @@ class SearchService:
             else:
                 logger.info("已启用 SearXNG 公共实例自动发现模式")
 
-        # 7. Anspire Search（实时智能搜索优化）
+        # 8. Anspire Search（实时智能搜索优化；韩国股票仍排在 Naver 后面）
         if anspire_keys:
-            self._providers.insert(0, AnspireSearchProvider(anspire_keys))
+            insert_at = 1 if any(isinstance(provider, NaverSearchProvider) for provider in self._providers) else 0
+            self._providers.insert(insert_at, AnspireSearchProvider(anspire_keys))
             logger.info(f"已配置 Anspire Search 搜索，共 {len(anspire_keys)} 个 API Key")
             
         if not self._providers:
@@ -2374,6 +2494,11 @@ class SearchService:
         if code.isdigit() and len(code) == 5:
             return True
         return False
+
+    @staticmethod
+    def _is_korean_stock(stock_code: str) -> bool:
+        """Only explicit Korean exchange suffixes are treated as Korean stocks."""
+        return stock_code.strip().upper().endswith((".KS", ".KQ"))
 
     @classmethod
     def _contains_chinese_text(cls, value: Optional[str]) -> bool:
@@ -3609,6 +3734,8 @@ class SearchService:
             query = " ".join(focus_keywords)
         elif prefer_chinese:
             query = f"{stock_name} {stock_code} 股票 最新消息"
+        elif self._is_korean_stock(stock_code):
+            query = f"{stock_name} {stock_code} 주식 최신 뉴스"
         elif is_foreign:
             # 港股/美股使用英文搜索关键词
             query = f"{stock_name} {stock_code} stock latest news"
@@ -3689,6 +3816,12 @@ class SearchService:
             best_ranked_stats: Optional[Dict[str, int]] = None
             for provider in self._providers:
                 if not provider.is_available:
+                    continue
+                if isinstance(provider, NaverSearchProvider) and not self._is_korean_stock(stock_code):
+                    logger.debug(
+                        "跳过 Naver 新闻搜索: %s 不是显式 .KS/.KQ 韩国股票代码",
+                        stock_code,
+                    )
                     continue
 
                 search_kwargs: Dict[str, Any] = {}
@@ -4446,6 +4579,8 @@ def get_search_service() -> SearchService:
                 config = get_config()
                 
                 _search_service = SearchService(
+                    naver_client_id=config.naver_client_id,
+                    naver_client_secret=config.naver_client_secret,
                     bocha_keys=config.bocha_api_keys,
                     tavily_keys=config.tavily_api_keys,
                     anspire_keys=config.anspire_api_keys,

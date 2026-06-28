@@ -343,6 +343,8 @@ class TestSettingsHelpMetadata(unittest.TestCase):
         "TUSHARE_TOKEN",
         "REALTIME_SOURCE_PRIORITY",
         "TAVILY_API_KEYS",
+        "NAVER_CLIENT_ID",
+        "NAVER_CLIENT_SECRET",
         "NEWS_STRATEGY_PROFILE",
         "WECHAT_WEBHOOK_URL",
         "EMAIL_RECEIVERS",
@@ -613,6 +615,29 @@ class TestSensitiveFieldsUsePasswordControl(unittest.TestCase):
                     violations.append(field["key"])
         self.assertEqual(violations, [],
                          f"Sensitive fields with non-password ui_control: {violations}")
+
+
+class TestNaverSearchFieldsRegistered(unittest.TestCase):
+    """Naver Search credentials should be exposed as sensitive data-source fields."""
+
+    def test_field_definitions_exist(self):
+        for key in ("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"):
+            field = get_field_definition(key)
+            self.assertEqual(field["category"], "data_source")
+            self.assertEqual(field["ui_control"], "password")
+            self.assertTrue(field["is_sensitive"])
+            self.assertEqual(field["help_key"], "settings.data_source.search_api_keys")
+
+    def test_schema_response_includes_naver_fields(self):
+        schema = build_schema_response()
+        data_source_cat = next(
+            (c for c in schema["categories"] if c["category"] == "data_source"),
+            None,
+        )
+        self.assertIsNotNone(data_source_cat, "data_source category missing")
+        field_keys = {f["key"] for f in data_source_cat["fields"]}
+        self.assertIn("NAVER_CLIENT_ID", field_keys)
+        self.assertIn("NAVER_CLIENT_SECRET", field_keys)
 
 
 class TestDiscordInteractionPublicKeyField(unittest.TestCase):

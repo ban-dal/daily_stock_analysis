@@ -93,6 +93,8 @@ def build_market_review_runtime(
     has_search_capability = getattr(config, "has_search_capability_enabled", None)
     if callable(has_search_capability) and has_search_capability():
         search_service = SearchService(
+            naver_client_id=getattr(config, "naver_client_id", None),
+            naver_client_secret=getattr(config, "naver_client_secret", None),
             bocha_keys=getattr(config, "bocha_api_keys", None),
             tavily_keys=getattr(config, "tavily_api_keys", None),
             anspire_keys=getattr(config, "anspire_api_keys", None),

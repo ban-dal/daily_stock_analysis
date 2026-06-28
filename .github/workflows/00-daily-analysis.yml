@@ -271,6 +271,8 @@ jobs:
           ANSPIRE_LLM_ENABLED: ${{ vars.ANSPIRE_LLM_ENABLED || secrets.ANSPIRE_LLM_ENABLED }}
           BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
           TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
           SERPAPI_API_KEYS: ${{ secrets.SERPAPI_API_KEYS }}
           MINIMAX_API_KEYS: ${{ secrets.MINIMAX_API_KEYS }}
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
@@ -451,6 +453,13 @@ jobs:
           echo "【搜索引擎】"
           echo "  Bocha API Keys: $([ -n "$BOCHA_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Tavily API Keys: $([ -n "$TAVILY_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
+          if [ -n "$NAVER_CLIENT_ID" ] && [ -n "$NAVER_CLIENT_SECRET" ]; then
+            echo "  Naver Search: ✅ 已配置"
+          elif [ -n "$NAVER_CLIENT_ID" ] || [ -n "$NAVER_CLIENT_SECRET" ]; then
+            echo "  Naver Search: 🟡 配置不完整"
+          else
+            echo "  Naver Search: ⚪ 未配置"
+          fi
           echo "  SerpAPI Keys: $([ -n "$SERPAPI_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  MiniMax API Keys: $([ -n "$MINIMAX_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Brave API Keys: $([ -n "$BRAVE_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"

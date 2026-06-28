@@ -119,6 +119,7 @@ News search strongly improves sentiment, announcements, events, and catalyst qua
 | `ANSPIRE_API_KEYS` | [Anspire AI Search](https://aisearch.anspire.cn/), optimized for Chinese content and A-share analysis; the same key can also be used for Anspire LLM fallback examples | **Recommended** |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis), search-engine results for realtime financial news | **Recommended** |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/), general news search API | Optional |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | [Naver Search](https://developers.naver.com/docs/serviceapi/search/news/news.md), prioritized Korean `.KS`/`.KQ` stock news search | Optional |
 | `BOCHA_API_KEYS` | [Bocha](https://open.bocha.cn/), Chinese search with AI summaries | Optional |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/), privacy-first search and US-stock news enrichment | Optional |
 | `MINIMAX_API_KEYS` | [MiniMax](https://platform.minimaxi.com/), structured search results | Optional |

@@ -333,6 +333,8 @@ def _build_hotspot_event_routes_from_search(topic: str, config: Config) -> List[
         from src.search_service import SearchService
 
         service = SearchService(
+            naver_client_id=getattr(config, "naver_client_id", None),
+            naver_client_secret=getattr(config, "naver_client_secret", None),
             bocha_keys=getattr(config, "bocha_api_keys", None),
             tavily_keys=getattr(config, "tavily_api_keys", None),
             anspire_keys=getattr(config, "anspire_api_keys", None),

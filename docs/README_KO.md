@@ -119,6 +119,7 @@ Fork한 저장소를 열고 `Settings` -> `Secrets and variables` -> `Actions` -
 | `ANSPIRE_API_KEYS` | [Anspire AI Search](https://aisearch.anspire.cn/). 중국어 콘텐츠와 A주 분석에 최적화되어 있으며, 같은 키를 Anspire LLM fallback 예시에도 사용할 수 있습니다. | **권장** |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/baidu-search-api?utm_source=github_daily_stock_analysis). 실시간 금융 뉴스용 검색엔진 결과 | **권장** |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/). 범용 뉴스 검색 API | 선택 |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | [Naver Search](https://developers.naver.com/docs/serviceapi/search/news/news.md). 한국 `.KS`/`.KQ` 종목 뉴스 우선 검색 | 선택 |
 | `BOCHA_API_KEYS` | [Bocha](https://open.bocha.cn/). AI 요약을 제공하는 중국어 검색 | 선택 |
 | `BRAVE_API_KEYS` | [Brave Search](https://brave.com/search/api/). 프라이버시 우선 검색 및 미국 주식 뉴스 보강 | 선택 |
 | `MINIMAX_API_KEYS` | [MiniMax](https://platform.minimaxi.com/). 구조화된 검색 결과 | 선택 |

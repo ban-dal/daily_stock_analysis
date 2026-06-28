@@ -29,6 +29,16 @@ def test_daily_analysis_workflow_matches_documented_searxng_variable_mapping() -
     assert "SEARXNG_BASE_URLS: ${{ secrets.SEARXNG_BASE_URLS }}" not in workflow
 
 
+def test_daily_analysis_workflow_maps_naver_search_secrets() -> None:
+    workflow = (
+        ROOT_DIR / ".github" / "workflows" / "00-daily-analysis.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}" in workflow
+    assert "NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}" in workflow
+    assert "Naver Search:" in workflow
+
+
 def test_changelog_mentions_searxng_actions_variable_mapping() -> None:
     changelog = (ROOT_DIR / "docs" / "CHANGELOG.md").read_text(encoding="utf-8")
 

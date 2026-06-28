@@ -215,6 +215,7 @@ journalctl -u stock-analyzer -f
 | `AIHUBMIX_KEY` | - | AIHubMix one-key multi-model access (recommended) |
 | `SERPAPI_API_KEYS` | - | SerpAPI realtime financial news search (recommended) |
 | `TAVILY_API_KEYS` | - | Tavily news search (optional) |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | - | Naver Korean `.KS`/`.KQ` stock news search (optional, both required) |
 | `MINIMAX_API_KEYS` | - | MiniMax search (optional) |
 
 ---
@@ -389,6 +390,7 @@ Add these Secrets:
 | `STOCK_LIST` | Watchlist, e.g., `600519,300750` | ✅ |
 | `SERPAPI_API_KEYS` | SerpAPI Key | Recommended |
 | `TAVILY_API_KEYS` | Tavily Search API Key | Optional |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | Naver Search Client ID/Secret | Optional |
 | `BOCHA_API_KEYS` | Bocha Search API Key | Optional |
 | `BRAVE_API_KEYS` | Brave Search API Key | Optional |
 | `MINIMAX_API_KEYS` | MiniMax Coding Plan Web Search | Optional |
