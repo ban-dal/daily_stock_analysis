@@ -1065,6 +1065,85 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
         self.assertIn("Action Levels", out)
         self.assertIn("Hold", out)
 
+    @mock.patch("src.notification.get_config")
+    def test_generate_daily_report_localizes_korean_legacy_fallback(self, mock_get_config: mock.MagicMock):
+        mock_get_config.return_value = _make_config(report_renderer_enabled=False, report_language="ko")
+        service = NotificationService()
+        result = AnalysisResult(
+            code="035420.KS",
+            name="NAVER",
+            sentiment_score=68,
+            trend_prediction="看多",
+            operation_advice="持有",
+            analysis_summary="검색 광고와 AI 인프라 기대가 유지됩니다.",
+            report_language="ko",
+            key_points="AI 인프라 협력 기대",
+            buy_reason="조정 시 분할 접근",
+            trend_analysis="단기 추세는 완만한 상승",
+            short_term_outlook="변동성 확대 가능",
+            medium_term_outlook="실적 확인 필요",
+            technical_analysis="이동평균 상단 유지",
+            ma_analysis="MA20 상회",
+            volume_analysis="거래량 보통",
+            pattern_analysis="박스권 상단",
+            fundamental_analysis="광고 매출 안정",
+            sector_position="인터넷 대표주",
+            company_highlights="AI 투자 확대",
+            news_summary="NVIDIA 협력 뉴스",
+            market_sentiment="중립 이상",
+            hot_topics="AI 인프라",
+            risk_warning="밸류에이션 부담",
+            search_performed=True,
+            data_sources="Naver Search",
+        )
+
+        out = service.generate_daily_report([result], report_date="2026-06-28")
+
+        self.assertIn("지표", out)
+        self.assertIn("핵심 포인트", out)
+        self.assertIn("기술적 분석", out)
+        self.assertIn("리스크 경고", out)
+        self.assertNotIn("指标", out)
+        self.assertNotIn("核心看点", out)
+        self.assertNotIn("操作理由", out)
+        self.assertNotIn("技术面分析", out)
+        self.assertNotIn("风险提示", out)
+
+    @mock.patch("src.services.report_renderer.get_config")
+    def test_markdown_renderer_localizes_korean_no_dashboard_fallback(self, mock_get_config: mock.MagicMock):
+        mock_get_config.return_value = _make_config(
+            report_renderer_enabled=True,
+            report_language="ko",
+            report_templates_dir="templates",
+            report_show_llm_model=False,
+        )
+        from src.services.report_renderer import render
+
+        result = AnalysisResult(
+            code="035420.KS",
+            name="NAVER",
+            sentiment_score=66,
+            trend_prediction="看多",
+            operation_advice="持有",
+            analysis_summary="실적 확인 전 관망이 필요합니다.",
+            report_language="ko",
+            buy_reason="조정 시 분할 접근",
+            risk_warning="밸류에이션 부담",
+        )
+
+        out = render(
+            platform="markdown",
+            results=[result],
+            report_date="2026-06-28",
+            extra_context={"report_language": "ko"},
+        )
+
+        self.assertIsNotNone(out)
+        self.assertIn("판단 근거", out)
+        self.assertIn("리스크 경고", out)
+        self.assertNotIn("操作理由", out or "")
+        self.assertNotIn("风险提示", out or "")
+
     def _make_fundamental_context(self) -> dict:
         return {
             "earnings": {

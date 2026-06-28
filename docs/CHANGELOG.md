@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [修复] 修复 `REPORT_LANGUAGE=ko` 时通知日报与 Markdown 模板 fallback 仍混入中文固定文案的问题，并补齐韩语报告的行情来源与金额单位展示。
 - [新功能] `REPORT_LANGUAGE` 新增韩语输出支持，官方值为 `ko`，并兼容 `kr` / `ko-KR` 输入别名。
 - [改进] GitHub Actions 每日分析手动触发新增 `report_language` 选择项，可在单次运行中选择 `use-config`、`zh`、`en` 或 `ko`，并在运行日志中打印最终报告语言。
 - [新功能] 新增 Naver Search 新闻 provider，配置 `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` 后对 `.KS` / `.KQ` 韩国个股优先使用 Naver 新闻搜索，并在 GitHub Actions 每日分析工作流中支持对应 Secrets。
