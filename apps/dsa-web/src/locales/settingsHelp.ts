@@ -516,7 +516,7 @@ const settingsHelpZhCN: SettingsHelpMap = {
   'settings.notification.report_output': {
     title: '报告输出设置',
     summary: '控制通知报告的详细程度、语言和模板输出。',
-    usage: 'REPORT_TYPE 可选 simple/full/brief，REPORT_LANGUAGE 可选 zh/en。',
+    usage: 'REPORT_TYPE 可选 simple/full/brief，REPORT_LANGUAGE 可选 zh/en/ko；kr、ko-KR 会按 ko 处理。',
     valueNotes: ['报告语言影响默认模板和通知文案，不等同于前端界面语言。'],
     impact: ['影响通知正文长度、语言和阅读体验。'],
     notes: ['full 报告可能更长，部分平台可能触发分段发送。'],
@@ -1615,7 +1615,7 @@ const settingsHelpEnUS: SettingsHelpMap = {
   'settings.notification.report_output': {
     title: 'Report Output',
     summary: 'Controls notification detail level, language, and template output.',
-    usage: 'REPORT_TYPE supports simple/full/brief. REPORT_LANGUAGE supports zh/en.',
+    usage: 'REPORT_TYPE supports simple/full/brief. REPORT_LANGUAGE supports zh/en/ko; kr and ko-KR are treated as ko.',
     valueNotes: ['Report language affects default report and notification text, not the Web UI language.'],
     impact: ['Affects notification length, language, and readability.'],
     notes: ['Full reports can be long and may be split by some platforms.'],

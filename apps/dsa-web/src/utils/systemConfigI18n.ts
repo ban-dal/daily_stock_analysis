@@ -298,7 +298,7 @@ const fieldDescriptionMap: Record<string, string> = {
   WEBHOOK_VERIFY_SSL: '发送 HTTPS Webhook 时是否校验证书，公网环境建议保持开启。',
   SINGLE_STOCK_NOTIFY: '启用后按个股分别推送通知；关闭则合并为单条消息。',
   REPORT_TYPE: '通知报告展示粒度（如 simple/full/brief）。',
-  REPORT_LANGUAGE: '通知报告语言（zh/en）。',
+  REPORT_LANGUAGE: '通知报告语言（zh/en/ko；kr、ko-KR 会作为 ko 的兼容别名）。',
   REPORT_TEMPLATES_DIR: '自定义报告模板目录路径。',
   REPORT_INTEGRITY_ENABLED: '启用报告完整性检查，避免发送缺字段或异常内容。',
   REPORT_RENDERER_ENABLED: '启用报告渲染器，将结构化数据渲染为最终通知内容。',

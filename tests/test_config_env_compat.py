@@ -819,6 +819,12 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
 
         self.assertEqual(parsed, "zh")
 
+    def test_parse_report_language_accepts_korean_alias_without_warning(self) -> None:
+        with self.assertNoLogs("src.config", level="WARNING"):
+            parsed = Config._parse_report_language("kr")
+
+        self.assertEqual(parsed, "ko")
+
     def test_parse_market_review_region_accepts_jp_kr_values_and_comma_lists(self) -> None:
         self.assertEqual(Config._parse_market_review_region("jp"), "jp")
         self.assertEqual(Config._parse_market_review_region("KR"), "kr")

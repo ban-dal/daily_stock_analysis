@@ -550,14 +550,26 @@ def _persist_market_review_history(
 
         report_language = normalize_report_language(getattr(config, "report_language", "zh"))
         summary = _summarize_market_review(review_report, report_language)
-        if report_language == "en":
-            stock_name = "Market Review"
-            operation_advice = "View review"
-            trend_prediction = "Market review"
-        else:
-            stock_name = "大盘复盘"
-            operation_advice = "查看复盘"
-            trend_prediction = "大盘复盘"
+        review_labels = {
+            "zh": {
+                "stock_name": "大盘复盘",
+                "operation_advice": "查看复盘",
+                "trend_prediction": "大盘复盘",
+            },
+            "en": {
+                "stock_name": "Market Review",
+                "operation_advice": "View review",
+                "trend_prediction": "Market review",
+            },
+            "ko": {
+                "stock_name": "시장 복기",
+                "operation_advice": "복기 보기",
+                "trend_prediction": "시장 복기",
+            },
+        }[report_language]
+        stock_name = review_labels["stock_name"]
+        operation_advice = review_labels["operation_advice"]
+        trend_prediction = review_labels["trend_prediction"]
 
         result = AnalysisResult(
             code=MARKET_REVIEW_HISTORY_CODE,
@@ -657,7 +669,11 @@ def _build_market_review_context_overview(
         metadata["trigger_source"] = diagnostic_snapshot.get("trigger_source") or metadata["trigger_source"]
         metadata["scope"] = diagnostic_snapshot.get("scope") or metadata["scope"]
 
-    label = "Market review" if report_language == "en" else "大盘复盘"
+    label = {
+        "zh": "大盘复盘",
+        "en": "Market review",
+        "ko": "시장 복기",
+    }[normalize_report_language(report_language)]
     return {
         "pack_version": "market_review/1.0",
         "created_at": datetime.now().isoformat(),
@@ -694,4 +710,8 @@ def _summarize_market_review(review_report: str, report_language: str) -> str:
         text = line.strip().lstrip("#").strip()
         if text and not text.startswith("---") and not text.startswith(">"):
             return text[:200]
-    return "Market review report generated." if report_language == "en" else "大盘复盘报告已生成。"
+    return {
+        "zh": "大盘复盘报告已生成。",
+        "en": "Market review report generated.",
+        "ko": "시장 복기 보고서가 생성되었습니다.",
+    }[normalize_report_language(report_language)]

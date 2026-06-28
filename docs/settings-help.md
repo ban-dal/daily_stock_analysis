@@ -21,7 +21,7 @@
 
 ## WebUI 语言说明（非配置项）
 
-本项目新增独立的 WebUI 界面语言能力（`zh` / `en`），用于静态页面文案、导航与通用控件文案。该状态与 `REPORT_LANGUAGE` 解耦，不改写报告语言语义。
+本项目新增独立的 WebUI 界面语言能力（`zh` / `en`），用于静态页面文案、导航与通用控件文案。该状态与 `REPORT_LANGUAGE` 解耦，不改写报告语言语义；报告输出语言由 `REPORT_LANGUAGE` 控制，支持 `zh` / `en` / `ko`，其中 `kr`、`ko-KR` 会按 `ko` 处理。
 
 - 状态键：`dsa.uiLanguage`（`localStorage`，浏览器端持久化）。
 - 初始化优先级：`localStorage` 有效值优先，其次识别浏览器语言（`zh-*` / `en-*`），最后回退 `zh`。

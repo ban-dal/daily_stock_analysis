@@ -200,6 +200,33 @@ def test_format_public_phase_pack_excerpt_limits_and_redacts_public_fields() -> 
     assert "api_key=secret" not in excerpt
 
 
+def test_format_public_phase_pack_excerpt_localizes_korean_public_labels() -> None:
+    excerpt = format_public_phase_pack_excerpt(
+        {
+            "phase": "intraday",
+            "market": "kr",
+            "trigger_source": "portfolio",
+            "is_partial_bar": True,
+        },
+        {
+            "data_quality": {
+                "level": "limited",
+                "limitations": ["quote stale"],
+            }
+        },
+        source="analysis_history_snapshot",
+        report_language="ko",
+    )
+
+    assert "단계: intraday" in excerpt
+    assert "시장: kr" in excerpt
+    assert "요약 출처: 최근 분석 스냅샷" in excerpt
+    assert "장중 데이터 참고" in excerpt
+    assert "데이터 품질: limited" in excerpt
+    assert "제한: quote stale" in excerpt
+    assert "阶段" not in excerpt
+
+
 def test_format_public_phase_pack_excerpt_returns_empty_without_summary_or_pack() -> None:
     assert format_public_phase_pack_excerpt(None, None, source="evaluator_snapshot") == ""
 
@@ -218,6 +245,13 @@ def test_format_public_market_status_line_localizes_compact_summary() -> None:
             report_language="en",
         )
         == "Market status: US · Pre-market"
+    )
+    assert (
+        format_public_market_status_line(
+            {"market": "kr", "phase": "intraday"},
+            report_language="ko",
+        )
+        == "시장 상태: 한국 · 장중"
     )
 
 

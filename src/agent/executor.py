@@ -460,6 +460,13 @@ def _build_language_section(report_language: str, *, chat_mode: bool = False) ->
 - Reply in English.
 - If you output JSON, keep the keys unchanged and write every human-readable value in English.
 """
+        if normalized == "ko":
+            return """
+## Output Language
+
+- Reply in Korean.
+- If you output JSON, keep the keys unchanged and write every human-readable value in Korean.
+"""
         return """
 ## 输出语言
 
@@ -474,6 +481,15 @@ def _build_language_section(report_language: str, *, chat_mode: bool = False) ->
 - Keep every JSON key unchanged.
 - `decision_type` must remain `buy|hold|sell`.
 - All human-readable JSON values must be written in English.
+- This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, all dashboard text, checklist items, and summaries.
+"""
+    if normalized == "ko":
+        return """
+## Output Language
+
+- Keep every JSON key unchanged.
+- `decision_type` must remain `buy|hold|sell`.
+- All human-readable JSON values must be written in Korean.
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, all dashboard text, checklist items, and summaries.
 """
 
@@ -818,6 +834,8 @@ class AgentExecutor:
                 parts.append(f"报告类型: {context['report_type']}")
             if report_language == "en":
                 parts.append("输出语言: English（所有 JSON 键名保持不变，所有面向用户的文本值使用英文）")
+            elif report_language == "ko":
+                parts.append("输出语言: Korean（所有 JSON 键名保持不变，所有面向用户的文本值使用韩文）")
             else:
                 parts.append("输出语言: 中文（所有 JSON 键名保持不变，所有面向用户的文本值使用中文）")
 

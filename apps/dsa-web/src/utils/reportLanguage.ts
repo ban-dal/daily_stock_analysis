@@ -1,7 +1,13 @@
 import type { ReportLanguage } from '../types/analysis';
 
-export const normalizeReportLanguage = (value?: string | null): ReportLanguage =>
-  value === 'en' ? 'en' : 'zh';
+export const normalizeReportLanguage = (value?: string | null): ReportLanguage => {
+  const normalized = (value || '').trim().toLowerCase().replace('_', '-');
+  if (normalized === 'en') return 'en';
+  if (normalized === 'ko' || normalized === 'kr' || normalized === 'ko-kr' || normalized === 'korean') {
+    return 'ko';
+  }
+  return 'zh';
+};
 
 const REPORT_TEXT = {
   zh: {
@@ -95,6 +101,52 @@ const REPORT_TEXT = {
     laggingBoard: 'Lagging',
     neutralBoard: 'Neutral',
     reanalyze: 'Reanalyze',
+  },
+  ko: {
+    keyInsights: '핵심 인사이트',
+    noAnalysisSummary: '분석 결론 없음',
+    actionAdvice: '매매 의견',
+    noAdvice: '의견 없음',
+    trendPrediction: '추세 전망',
+    noPrediction: '전망 없음',
+    marketSentiment: '시장 심리',
+    strategyPoints: '전략 가격대',
+    sniperLevels: '매매 가격대',
+    idealBuy: '이상적 매수가',
+    secondaryBuy: '보조 매수가',
+    stopLoss: '손절가',
+    takeProfit: '목표가',
+    noValue: '—',
+    newsFeed: '뉴스 흐름',
+    relatedNews: '관련 뉴스',
+    refresh: '새로고침',
+    retry: '재시도',
+    dismiss: '닫기',
+    details: '상세 보기',
+    loadingNews: '뉴스를 불러오는 중...',
+    noNews: '관련 뉴스 없음',
+    noNewsDescription: '잠시 후 새로고침해 최신 뉴스를 확인하세요.',
+    openLink: '열기',
+    transparency: '투명성',
+    traceability: '데이터 추적',
+    rawResult: '원본 분석 결과',
+    analysisSnapshot: '분석 스냅샷',
+    copy: '복사',
+    copied: '복사됨',
+    recordId: '기록 ID',
+    fullReport: '전체 분석 보고서',
+    loadingReport: '보고서를 불러오는 중...',
+    loadReportFailed: '보고서 로드 실패',
+    copyMarkdownSource: 'Markdown 원문 복사',
+    copyPlainText: '일반 텍스트 복사',
+    analysisModel: '모델',
+    fearGreedIndex: '공포·탐욕 지수',
+    boardLinkage: '섹터 연동',
+    relatedBoards: '관련 섹터',
+    leadingBoard: '상승 주도',
+    laggingBoard: '하락 주도',
+    neutralBoard: '중립',
+    reanalyze: '다시 분석',
   },
 } as const;
 

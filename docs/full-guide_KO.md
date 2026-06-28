@@ -115,7 +115,7 @@ Fork한 repo → `Settings` → `Secrets and variables` → `Actions` → `New r
 |------------|------|:----:|
 | `SINGLE_STOCK_NOTIFY` | 단일 종목 push 모드. `true`로 설정하면 각 종목 분석 직후 push | 선택 |
 | `REPORT_TYPE` | 리포트 유형: `simple`(간결), `full`(전체), `brief`(3-5문장), Docker 권장: `full` | 선택 |
-| `REPORT_LANGUAGE` | 리포트 출력 언어: `zh`(기본 중국어) / `en`(영어). prompt instructions, templates, notification fallback, Web report view의 고정 문구도 함께 업데이트합니다. 번들 `00-daily-analysis.yml`은 이미 이 변수를 매핑하므로 Actions Secrets/Variables에 설정하면 바로 동작합니다. workflow를 수동 실행할 때는 `report_language` 입력으로 이번 실행만 임시 override할 수 있고, `use-config`는 Secrets/Variables 값을 그대로 사용합니다. | 선택 |
+| `REPORT_LANGUAGE` | 리포트 출력 언어: `zh`(기본 중국어) / `en`(영어) / `ko`(한국어). `kr`, `ko-KR`은 `ko`의 호환 alias로 처리됩니다. prompt instructions, templates, notification fallback, Web report view의 고정 문구도 함께 업데이트합니다. 번들 `00-daily-analysis.yml`은 이미 이 변수를 매핑하므로 Actions Secrets/Variables에 설정하면 바로 동작합니다. workflow를 수동 실행할 때는 `report_language` 입력으로 이번 실행만 임시 override할 수 있고, `use-config`는 Secrets/Variables 값을 그대로 사용합니다. | 선택 |
 | `REPORT_SHOW_LLM_MODEL` | 알림 리포트 footer에 분석에 사용된 LLM model을 표시할지 여부. 기본값은 `true`; runtime model metadata를 숨기려면 `false`로 설정합니다. 이 switch는 표시만 바꾸며 provider/model/Base URL, LiteLLM routing, runtime model save/migration/cleanup 동작은 변경하지 않습니다. | 선택 |
 | `REPORT_TEMPLATES_DIR` | Jinja2 template directory(프로젝트 루트 기준 상대 경로, 기본값 `templates`) | 선택 |
 | `REPORT_RENDERER_ENABLED` | Jinja2 template rendering 활성화(default `false`, zero regression) | 선택 |
@@ -1302,7 +1302,7 @@ FastAPI는 configuration management와 analysis trigger를 위한 RESTful API se
 
 이 기능의 제품 동작은 다음과 같습니다.
 
-- UI language는 report language와 독립적입니다. `dsa.uiLanguage`(browser persistence)는 shell/login/settings text를 제어하고, `REPORT_LANGUAGE`는 report text와 report-page fixed copy(`zh`/`en`)를 제어합니다.
+- UI language는 report language와 독립적입니다. `dsa.uiLanguage`(browser persistence)는 shell/login/settings text를 제어하고, `REPORT_LANGUAGE`는 report text와 report-page fixed copy(`zh`/`en`/`ko`)를 제어합니다.
 - `dsa.uiLanguage`는 local persistence -> browser language -> default `zh` 순서를 따릅니다.
 - 이 변경은 request-scope report language override parameter만 추가합니다. `provider`, `model`, `base_url`, migration/cleanup behavior는 수정하지 않습니다.
 - PR-level verification output, screenshots, command logs는 이 사용 가이드가 아니라 PR description에서 유지합니다.
@@ -1343,10 +1343,10 @@ FastAPI는 configuration management와 analysis trigger를 위한 RESTful API se
 > 참고: `POST /api/v1/analysis/analyze`는 `async_mode=false`일 때 한 종목만 지원합니다. batch `stock_codes`는 `async_mode=true`가 필요합니다. async `202` response는 한 종목이면 단일 `task_id`, batch request면 `accepted` / `duplicates` summary를 반환합니다.
 > 참고: `POST /api/v1/analysis/analyze`는 strategy ID 배열로 `skills`를 받습니다. 생략하면 server default를 사용합니다. legacy field `strategies`도 backward compatibility를 위해 계속 받습니다.
 > 참고: `POST /api/v1/analysis/analyze`는 `analysis_phase=auto|premarket|intraday|postmarket`를 받으며 기본값은 `auto`입니다. Non-`auto`는 해당 run의 phase와 derived phase flag만 override하고 실제 trading-calendar timestamp를 rewrite하지 않습니다. Accepted responses, in-memory task status, task lists, SSE는 requested phase를 echo하지만 final report phase는 `report.meta.market_phase_summary.phase`로 남습니다.
-> 참고: `POST /api/v1/analysis/analyze`는 `report_language=zh|en`(legacy-compatible alias `reportLanguage`)을 받습니다. 생략하면 global `REPORT_LANGUAGE`로 fallback합니다. 이 parameter는 request-scoped이며 response의 `report.meta.report_language`를 포함한 해당 run의 report output language에 영향을 줍니다.
+> 참고: `POST /api/v1/analysis/analyze`는 `report_language=zh|en|ko`(legacy-compatible alias `reportLanguage`)을 받습니다. `kr`, `ko-KR`은 설정 입력에서 `ko`로 정규화됩니다. 생략하면 global `REPORT_LANGUAGE`로 fallback합니다. 이 parameter는 request-scoped이며 response의 `report.meta.report_language`를 포함한 해당 run의 report output language에 영향을 줍니다.
 > 참고: Web Home page는 explicit strategy selector를 노출합니다. 사용자가 선택하지 않으면 `skills`를 보내지 않고 legacy behavior를 보존합니다. 선택하면 이 endpoint로 전달되고 task status/history snapshot에 저장됩니다.
 > 참고: `POST /api/v1/analysis/market-review`는 CLI/Bot market review와 같은 runtime configuration path(`GeminiAnalyzer(config=...)`, search setup, prompt/rendering pipeline)를 따릅니다. provider compatibility path는 `litellm_model`과 `llm_model_list`를 우선하고, 없으면 기존 legacy keys(`GEMINI_*`, `OPENAI_*`, `ANTHROPIC_*`, `DEEPSEEK_*`)로 fallback합니다. provider name, Base URL, LiteLLM routing semantics는 그 외 변경되지 않습니다.
-> 참고: `POST /api/v1/analysis/market-review`도 `report_language=zh|en` / `reportLanguage`를 받아 해당 request의 report language를 설정합니다. 생략하면 global `REPORT_LANGUAGE`로 fallback합니다. Bot/CLI/manual `/market-review` call은 global config를 계속 사용하며 request-level override를 전달하지 않습니다.
+> 참고: `POST /api/v1/analysis/market-review`도 `report_language=zh|en|ko` / `reportLanguage`를 받아 해당 request의 report language를 설정합니다. `kr`, `ko-KR`은 설정 입력에서 `ko`로 정규화됩니다. 생략하면 global `REPORT_LANGUAGE`로 fallback합니다. Bot/CLI/manual `/market-review` call은 global config를 계속 사용하며 request-level override를 전달하지 않습니다.
 > 참고: `POST /api/v1/analysis/market-review`는 명시적 Web/desktop trigger이며 market-review task를 직접 제출합니다. `TRADING_DAY_CHECK_ENABLED=true`이거나 설정된 시장이 그날 닫혀 있어도 short-circuit하지 않습니다. scheduled jobs, GitHub Actions manual runs, CLI defaults는 `--force-run` 또는 workflow `force_run`을 사용하지 않는 한 trading-day gate를 계속 따릅니다.
 > Audit note: priority와 fallback은 `src/config.py`의 `Config._load_from_env()`가 정의합니다(`LITELLM_CONFIG` > `LLM_CHANNELS` > legacy). Regression coverage는 `tests/test_llm_channel_config.py`(configuration source parsing)와 `tests/test_market_review_runtime.py`(shared runtime assembly)에 있습니다. endpoint lock은 process/host-level only이므로 multi-instance deployment는 external distributed idempotency control이 여전히 필요합니다.
 > 참고: `/api/v1/analysis/market-review`가 완료되면 report는 `report_type=market_review`로 저장됩니다. analysis를 다시 실행하지 않고 보려면 `/api/v1/history`와 `/api/v1/history/{record_id}`(또는 Markdown history endpoints)를 여세요.

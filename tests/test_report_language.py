@@ -6,15 +6,35 @@ import unittest
 from src.report_language import (
     get_bias_status_emoji,
     get_localized_stock_name,
+    get_report_labels,
     get_sentiment_label,
     get_signal_level,
     infer_decision_type_from_advice,
+    is_supported_report_language_value,
+    localize_confidence_level,
+    localize_operation_advice,
     localize_trend_prediction,
     localize_bias_status,
+    normalize_report_language,
 )
 
 
 class ReportLanguageTestCase(unittest.TestCase):
+    def test_korean_language_aliases_normalize_to_ko(self) -> None:
+        self.assertEqual(normalize_report_language("ko"), "ko")
+        self.assertEqual(normalize_report_language("kr"), "ko")
+        self.assertEqual(normalize_report_language("ko-KR"), "ko")
+        self.assertTrue(is_supported_report_language_value("kr"))
+
+    def test_korean_labels_and_common_translations(self) -> None:
+        labels = get_report_labels("kr")
+
+        self.assertEqual(labels["dashboard_title"], "의사결정 대시보드")
+        self.assertEqual(localize_operation_advice("Buy", "ko"), "매수")
+        self.assertEqual(localize_trend_prediction("very bearish", "ko"), "강한 하락 전망")
+        self.assertEqual(localize_confidence_level("Medium", "ko"), "보통")
+        self.assertEqual(get_sentiment_label(80, "ko"), "매우 낙관")
+
     def test_get_signal_level_handles_compound_sell_advice(self) -> None:
         signal_text, emoji, signal_tag = get_signal_level("卖出/观望", 60, "zh")
 
@@ -26,6 +46,13 @@ class ReportLanguageTestCase(unittest.TestCase):
         signal_text, emoji, signal_tag = get_signal_level("Buy / Watch", 40, "en")
 
         self.assertEqual(signal_text, "Buy")
+        self.assertEqual(emoji, "🟢")
+        self.assertEqual(signal_tag, "buy")
+
+    def test_get_signal_level_handles_korean_alias(self) -> None:
+        signal_text, emoji, signal_tag = get_signal_level("Buy / Watch", 40, "kr")
+
+        self.assertEqual(signal_text, "매수")
         self.assertEqual(emoji, "🟢")
         self.assertEqual(signal_tag, "buy")
 

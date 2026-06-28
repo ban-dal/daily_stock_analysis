@@ -1117,12 +1117,38 @@ class NotificationService(
         config = get_config()
         report_language = self._get_report_language(results)
         labels = get_report_labels(report_language)
-        reason_label = "Rationale" if report_language == "en" else "操作理由"
-        risk_warning_label = "Risk Warning" if report_language == "en" else "风险提示"
-        technical_heading = "Technicals" if report_language == "en" else "技术面"
-        ma_label = "Moving Averages" if report_language == "en" else "均线"
-        volume_analysis_label = "Volume" if report_language == "en" else "量能"
-        news_heading = "News Flow" if report_language == "en" else "消息面"
+        detail_labels = {
+            "zh": {
+                "reason": "操作理由",
+                "risk": "风险提示",
+                "technical": "技术面",
+                "ma": "均线",
+                "volume": "量能",
+                "news": "消息面",
+            },
+            "en": {
+                "reason": "Rationale",
+                "risk": "Risk Warning",
+                "technical": "Technicals",
+                "ma": "Moving Averages",
+                "volume": "Volume",
+                "news": "News Flow",
+            },
+            "ko": {
+                "reason": "판단 근거",
+                "risk": "리스크 경고",
+                "technical": "기술적 분석",
+                "ma": "이동평균",
+                "volume": "거래량",
+                "news": "뉴스 흐름",
+            },
+        }[report_language]
+        reason_label = detail_labels["reason"]
+        risk_warning_label = detail_labels["risk"]
+        technical_heading = detail_labels["technical"]
+        ma_label = detail_labels["ma"]
+        volume_analysis_label = detail_labels["volume"]
+        news_heading = detail_labels["news"]
         if getattr(config, 'report_renderer_enabled', False) and results:
             from src.services.report_renderer import render
             out = render(

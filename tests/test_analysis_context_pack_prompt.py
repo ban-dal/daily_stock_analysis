@@ -198,6 +198,24 @@ def test_english_summary_renders_readable_statuses() -> None:
     assert "Phase/data rule" not in section
 
 
+def test_korean_summary_renders_readable_statuses() -> None:
+    section = format_analysis_context_pack_prompt_section(
+        _pack(),
+        report_language="kr",
+    )
+
+    assert "분석 컨텍스트 팩 요약" in section
+    assert "대상: 600519 (贵州茅台)" in section
+    assert "시세: fallback" in section
+    assert "뉴스: missing" in section
+    assert "뉴스 결과 수: 3" in section
+    assert "데이터 제한" in section
+    assert "데이터 품질 점수: 76/100 (사용 가능)" in section
+    assert "알려진 제한： 시세: 폴백, 기술 지표: 부분 사용 가능" in section
+    assert "confidence_level은 High가 될 수 없습니다" in section
+    assert "단계/데이터 규칙" not in section
+
+
 def test_intraday_phase_degraded_core_adds_phase_data_quality_guard() -> None:
     section = format_analysis_context_pack_prompt_section(_pack_with_phase("intraday"))
 

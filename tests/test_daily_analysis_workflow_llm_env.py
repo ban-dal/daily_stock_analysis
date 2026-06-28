@@ -147,7 +147,7 @@ def test_daily_analysis_report_language_can_be_overridden_from_manual_input() ->
 
     assert report_language_input["type"] == "choice"
     assert report_language_input["default"] == "use-config"
-    assert report_language_input["options"] == ["use-config", "zh", "en"]
+    assert report_language_input["options"] == ["use-config", "zh", "en", "ko"]
     assert "github.event.inputs.report_language" in env["REPORT_LANGUAGE"]
     assert "vars.REPORT_LANGUAGE" in env["REPORT_LANGUAGE"]
     assert "secrets.REPORT_LANGUAGE" in env["REPORT_LANGUAGE"]
